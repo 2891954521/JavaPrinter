@@ -21,7 +21,7 @@ public class SetSingle extends BaseHandler{
 	@Override
 	protected void handlerMessage(Context context, @NotNull PrintTask printTask, String message){
 		if(printTask.status != PrintStatus.PRINTING && printTask.status != PrintStatus.WAITING_FLIP){
-			printTask.printParam.type = PrintParam.PrintType.SINGLE;
+			printTask.printParam.type = PrintParam.PrintType.ALL_PAGES;
 			printTask.sendMessage(printTask.getInfo() + "\n发送'确认'开始打印");
 		}else{
 			printTask.sendMessage("打印任务已开始, 无法修改!");

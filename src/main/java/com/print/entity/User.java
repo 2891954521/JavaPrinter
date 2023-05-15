@@ -27,6 +27,7 @@ public class User{
 	 * 给用户发送消息
 	 */
 	public void sendMessage(@NotNull Context context, String msg){
+//		Logger.log(msg);
 		try{
 			WebUtil.doPost(context.config.configFile.QQ.botUrl + "/send_msg", "user_id=" + id + "&message=" + URLEncoder.encode(msg, "UTF-8"));
 		}catch(IOException e){

@@ -9,9 +9,7 @@ public enum PrintStatus{
 	
 	WAITING_FILE("等待打印文件"),
 	
-	CONVERTING("转换中"),
-	
-	CALCULATING("计算页数"),
+	RECEIVING_FILE("正在接收文件"),
 	
 	/**
 	 * 处理完文件的状态，可以设置打印参数
@@ -24,7 +22,7 @@ public enum PrintStatus{
 	WAITING_PRINT("等待打印"),
 	
 	/**
-	 * 已提交打印任务给打印机
+	 * 打印机正在打印
 	 */
 	PRINTING("打印中"),
 	
@@ -33,15 +31,6 @@ public enum PrintStatus{
 	 */
 	WAITING_FLIP("等待翻面"),
 	
-	/**
-	 * 提交打印另一面的请求
-	 */
-	WAITING_PRINT_OTHER_SIDE("等待打印反面中"),
-	
-	/**
-	 * 正在打印另一面
-	 */
-	PRINTING_OTHER_SIDE("打印反面中"),
 	
 	FINISH("结束打印");
 	

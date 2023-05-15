@@ -1,18 +1,30 @@
 package com.print.print.task;
 
-import com.lowagie.text.pdf.PdfReader;
 import com.print.Context;
 import com.print.config.Command;
 import com.print.config.Messages;
-import com.print.entity.QQFile;
 import com.print.entity.User;
+import com.print.print.PrintHandler;
 import com.print.utils.CommandUtil;
 import com.print.utils.FileUtil;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.printing.PDFPrintable;
+import org.apache.pdfbox.printing.Scaling;
 import org.jetbrains.annotations.NotNull;
 
-
+import javax.print.*;
+import javax.print.attribute.HashPrintRequestAttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
+import javax.print.attribute.standard.Copies;
+import javax.print.attribute.standard.MediaSizeName;
+import javax.print.attribute.standard.Sides;
+import java.awt.print.Book;
+import java.awt.print.PageFormat;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PrintTask{
 	
@@ -23,7 +35,7 @@ public class PrintTask{
 	
 	/**
 	 * 打印者
- 	 */
+	 */
 	public User sender;
 	
 	/**
@@ -50,26 +62,68 @@ public class PrintTask{
 	
 	/**
 	 * 设置打印文件
-	 * @param url 文件URL
-	 * @param name 任务名称
+	 *
+	 * @param url    文件URL
+	 * @param name   任务名称
 	 * @param suffix 后缀名
 	 */
-	public void setFile(@NotNull String url, @NotNull String name, @NotNull String suffix){
-		
-		printFile.file = FileUtil.getOnlyFileName(
-			context.config.configFile.Print.fileRoot,
-			name.replaceAll("[ <>?*&\"\\\\|]", ""),
-			suffix
-		);
+	public synchronized void setFile(@NotNull String url, @NotNull String name, @NotNull String suffix){
+		if(status != PrintStatus.WAITING_FILE){
+			return;
+		}
 		
 		new Thread(() -> {
-			if(FileUtil.downloadFile(url, printFile.file)){
-				processFile(name, suffix);
+			status = PrintStatus.RECEIVING_FILE;
+			File file =  FileUtil.getOnlyFileName(
+					context.config.configFile.Print.fileRoot,
+					name.replaceAll("[ <>?*&\"\\\\|]", ""),
+					suffix
+			);
+			if(FileUtil.downloadFile(url, file)){
+				setFile(file, name, suffix);
 			}else{
 				sendMessage(Messages.failed_receive_file);
+				status = PrintStatus.WAITING_FILE;
 			}
 		}).start();
 	}
+	
+	/**
+	 * 设置打印文件
+	 *
+	 * @param file   文件
+	 * @param name   任务名称
+	 * @param suffix 后缀名
+	 */
+	public void setFile(@NotNull File file, @NotNull String name, @NotNull String suffix){
+		status = PrintStatus.RECEIVING_FILE;
+		printFile.file = file;
+		processFile(name, suffix);
+	}
+	
+	/**
+	 * 计算价格
+	 *
+	 * @return 价格
+	 */
+	public double getPrice(){
+		return printParam.count * printFile.totalPages * (printParam.color == PrintParam.PrintColor.GRAY ? context.config.configFile.Print.grayscalePrice : context.config.configFile.Print.colourPrice);
+	}
+	
+	/**
+	 * 获取打印任务信息
+	 *
+	 * @return 打印任务信息
+	 */
+	public String getInfo(){
+		return "名称: " + printFile.name +
+				"\n页数: " + printFile.totalPages + "页" +
+				"\n颜色: " + (printParam.color == PrintParam.PrintColor.GRAY ? "黑白" : "彩色") +
+				"\n类型: " + (printParam.type == PrintParam.PrintType.ALL_PAGES ? "单面打印" : (printParam.type == PrintParam.PrintType.ODD_PAGES ? "双面打印" : "仅打印偶数页")) +
+				(printParam.count > 1 ? "\n份数: " + printParam.count + " 份" : "") +
+				(context.config.configFile.Print.enablePrice ? "\n价格: " + String.format("%.2f 元", getPrice()) : "");
+	}
+	
 	
 	/**
 	 * 接收完文件后对文件进行处理
@@ -80,7 +134,19 @@ public class PrintTask{
 			if(!convertFile()) return;
 		}
 		
-		if(!calculatePage()) return;
+		try(PDDocument document = PDDocument.load(printFile.file)){
+			printFile.totalPages = document.getNumberOfPages();
+			
+			if(printFile.totalPages > context.config.configFile.Print.maxPage && sender.getId() != context.config.configFile.QQ.adminQQ){
+				status = PrintStatus.WAITING_FILE;
+				sendMessage("页数超过限制! 最大为" + context.config.configFile.Print.maxPage + "页");
+				return;
+			}
+		}catch(IOException | RuntimeException e){
+			status = PrintStatus.WAITING_FILE;
+			sendMessage("获取页数失败! " + e.getMessage());
+			return;
+		}
 		
 		printFile.name = name;
 		
@@ -89,61 +155,12 @@ public class PrintTask{
 		sendMessage("文件处理完成!\n" + getInfo() + "\n发送'确认'开始打印");
 	}
 	
-	
-	/**
-	 * 打印完成
-	 * @return 是否移除打印任务（双面打印不移除任务
-	 */
-	public boolean completePrint(){
-		if(status == PrintStatus.PRINTING){
-			if(printParam.type == PrintParam.PrintType.DOUBLE){
-				status = PrintStatus.WAITING_FLIP;
-				sendMessage(Messages.waiting_flip);
-				return false;
-			}else{
-				sendMessage(Messages.task_complete);
-				context.removePrintTask(this);
-				return true;
-			}
-		}else if(status == PrintStatus.PRINTING_OTHER_SIDE){
-			sendMessage(Messages.task_complete);
-			context.removePrintTask(this);
-			return true;
-		}else{
-			return false;
-		}
-	}
-	
-	
-	/**
-	 * 计算价格
-	 * @return 价格
-	 */
-	public double getPrice(){
-		return printParam.count * printFile.totalPages * (printParam.color == PrintParam.PrintColor.GRAY ? context.config.configFile.Print.grayscalePrice : context.config.configFile.Print.colourPrice);
-	}
-	
-	/**
-	 * 获取打印任务信息
-	 * @return 打印任务信息
-	 */
-	public String getInfo(){
-		return "名称: " + printFile.name +
-				"\n页数: " + printFile.totalPages + "页" +
-				"\n颜色: " + (printParam.color == PrintParam.PrintColor.GRAY ? "黑白" : "彩色") +
-				 "\n类型: " + (printParam.type == PrintParam.PrintType.SINGLE ? "单面打印": "双面打印") +
-				(printParam.count > 1 ? "\n份数: " + printParam.count + " 份" : "") +
-				(context.config.configFile.Print.enablePrice ? "\n价格: " + String.format("%.2f 元", getPrice()) : "");
-	}
-	
-	
 	/**
 	 * 转换doc为pdf
+	 *
 	 * @return 是否成功
 	 */
 	private boolean convertFile(){
-		status = PrintStatus.CONVERTING;
-		
 		sendMessage("正在将Word转换为PDF，请稍候");
 		
 		String name = printFile.file.getName();
@@ -153,13 +170,16 @@ public class PrintTask{
 		long start = System.currentTimeMillis();
 		
 		try{
-			String s = CommandUtil.execCommand(String.format(Command.DOC_TO_PDF, printFile.file, newFile));
+			String command = String.format(Command.DOC_TO_PDF, printFile.file.toString().replaceAll("\\\\", "/"), newFile.toString().replaceAll("\\\\", "/"));
+			sendMessage(command);
+			
+			String s = CommandUtil.execCommand(command);
 			if(!"".equals(s)){
 				if(!newFile.exists()){
 					throw new RuntimeException("请手动转换为pdf，result: " + s);
 				}
 				printFile.file = newFile;
-				sendMessage("转换完成, 耗时: " + (System.currentTimeMillis() - start) + " ms，发送 '预览' 以预览文件");
+				sendMessage("转换完成, 耗时: " + (System.currentTimeMillis() - start) + " ms");
 				return true;
 			}else{
 				throw new RuntimeException("请手动转换为pdf!");
@@ -172,88 +192,77 @@ public class PrintTask{
 	}
 	
 	/**
-	 * 计算文件页数
-	 * @return 是否成功
+	 * 提交打印任务到打印机
 	 */
-	private boolean calculatePage(){
-		status = PrintStatus.CALCULATING;
-		
-		try{
-			PdfReader reader = new PdfReader(printFile.file.toString());
-			printFile.totalPages = reader.getNumberOfPages();
+	public void print() throws IOException, PrintException{
+		status = PrintStatus.PRINTING;
+		try(PDDocument document = PDDocument.load(printFile.file)){
+			PrintRequestAttributeSet attr = new HashPrintRequestAttributeSet();
+			attr.add(new Copies(printParam.count));
+			attr.add(MediaSizeName.ISO_A4);
+			attr.add(Sides.ONE_SIDED);
 			
-			if(printFile.totalPages > context.config.configFile.Print.maxPage && sender.getId() != context.config.configFile.QQ.adminQQ){
-				status = PrintStatus.WAITING_FILE;
-				sendMessage("页数超过限制! 最大为" + context.config.configFile.Print.maxPage + "页");
-				return false;
+			List<PDDocument> pds = new ArrayList<>();
+			
+			// 按指定页面拆分文档
+			if(printParam.type == PrintParam.PrintType.ODD_PAGES){
+				PDDocument oddPages = new PDDocument();
+				for(int i = 0; i < printFile.totalPages; i += 2){
+					oddPages.addPage(document.getPage(i));
+				}
+				pds.add(oddPages);
+			}else if(printParam.type == PrintParam.PrintType.EVEN_PAGES){
+				PDDocument evenPages = new PDDocument();
+				for(int i = 1; i < printFile.totalPages; i += 2){
+					evenPages.addPage(document.getPage(i));
+				}
+				if(printFile.totalPages % 2 == 1){
+					// 总页数为奇数时补一页空白
+					evenPages.addPage(new PDPage(document.getPage(0).getMediaBox()));
+				}
+				pds.add(evenPages);
 			}else{
-				return true;
+				pds.add(document);
 			}
 			
+//			List<AbstractMap.SimpleEntry<Integer, Integer>> pageNumList = new ArrayList<>();
+//			Splitter splitter = new Splitter();
+//			for(AbstractMap.SimpleEntry<Integer, Integer> entry : pageNumList){
+//				splitter.setStartPage(entry.getKey());
+//				splitter.setEndPage(entry.getValue());
+//				pds.addAll(splitter.split(document));
+//			}
 			
-		}catch(IOException | RuntimeException e){
-			status = PrintStatus.WAITING_FILE;
-			sendMessage("获取页数失败! " + e.getMessage());
-			return false;
+			PageFormat pageFormat = new PageFormat();
+			pageFormat.setOrientation(PageFormat.PORTRAIT);
+			pageFormat.setPaper(PrintHandler.getInstance(context).paper);
+			
+			Book book = new Book();
+			for(PDDocument pd : pds){
+				PDFPrintable printable = new PDFPrintable(pd, Scaling.SCALE_TO_FIT);
+				book.append(printable, pageFormat, pd.getNumberOfPages());
+			}
+			
+			DocPrintJob printJob = PrintHandler.getInstance(context).getPrintService(printParam.color).createPrintJob();
+			Doc doc = new SimpleDoc(book, DocFlavor.SERVICE_FORMATTED.PAGEABLE, null);
+			
+			printJob.print(doc, attr);
 		}
 	}
 	
-	
-	/**
-	 * 预览文件
-	 */
-	public boolean previewFile(){
-//		String path = file.toString();
-//		path = path.substring(0, path.lastIndexOf("."));
-//		if(!hasPreview){
-//			hasPreview = true;
-//			try{
-//				String result = Utils.execCommand(String.format("pdftoppm -png -f 1 -l %d %s %s", (Math.min(totalPages, 3)), file, path));
-//				if(!"".equals(result)){
-//					sendMessage("预览失败! ");
-//					return false;
-//				}
-//			}catch(IOException | InterruptedException e){
-//				e.printStackTrace();
-//				sendMessage("预览失败! " + e.getMessage());
-//				return false;
-//			}
-//		}
-//
-//		for(int i = 0; i < 3 && i < totalPages; i++){
-//			sendMessage("[CQ:image,file=file://" + path + "-" + (i + 1) + ".png]");
-//			try{
-//				Thread.sleep(500);
-//			}catch(InterruptedException ignored){ }
-//		}
-//
-//		if(totalPages > 3){
-//			sendMessage("剩余" + (totalPages - 3) + "页未预览");
-//		}
-		
-		return true;
+	public boolean printCompleted(){
+		if(printParam.type == PrintParam.PrintType.ODD_PAGES){
+			status = PrintStatus.WAITING_FLIP;
+			printParam.type = PrintParam.PrintType.EVEN_PAGES;
+			sendMessage(Messages.waiting_flip);
+			return true;
+		}else{
+			status = PrintStatus.FINISH;
+			sendMessage(Messages.task_complete);
+			context.removePrintTask(this);
+			return false;
+		}
 	}
-	
-	/**
-	 * 获取打印的页码
-	 */
-	public String getPages(){
-//		if(type == PrintType.SINGLE){
-//			return "1-" + totalPages;
-//		}else if(type == PrintType.DOUBLE){
-//			StringBuilder sb = new StringBuilder();
-//			// 打印反面时返还偶数页，其他情况返还奇数页
-//			int i = status == PrintStatus.PRINTING_OTHER_SIDE ? 2 : 1;
-//			for(; i <= totalPages; i += 2){
-//				sb.append(i).append(',');
-//			}
-//			return sb.substring(0, sb.length() - 1);
-//		}else{
-//			return "1-" + totalPages;
-//		}
-		return "";
-	}
-	
 	
 	public void sendMessage(String message){
 		sender.sendMessage(context, message);

@@ -2,7 +2,7 @@ package com.print;
 
 import com.print.config.Config;
 import com.print.handler.MessageHandler;
-import com.print.print.PrintQueue;
+import com.print.print.PrintHandler;
 import com.print.print.task.PrintTask;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,19 +25,12 @@ public class Context{
 	 */
 	private final HashMap<Long, PrintTask> tasks;
 	
-	/**
-	 * 打印队列
-	 */
-	private final PrintQueue printThread;
-	
 	public Context(){
 		config = new Config();
 
 		messageHandler = new MessageHandler(this);
 		
 		tasks = new HashMap<>(4);
-		
-		printThread = new PrintQueue(this);
 	}
 	
 	
@@ -58,10 +51,10 @@ public class Context{
 	}
 	
 	public void startPrintTask(PrintTask task){
-		printThread.appendPrintTask(task);
+		PrintHandler.getInstance(this).appendPrintTask(task);
 	}
 	
 	public void continuePrintTask(PrintTask task){
-		printThread.continuePrint(task);
+		PrintHandler.getInstance(this).continuePrint(task);
 	}
 }

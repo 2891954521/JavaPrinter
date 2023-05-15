@@ -20,11 +20,9 @@ public class Messages{
 	
 	public static final String waiting_file = "请发送打印文件!";
 	
-	public static final String waiting_flip = "单面打印完成，请手动翻面后发送 '确认' 继续打印!";
+	public static final String waiting_flip = "单面打印完成，请在一分钟内手动翻面并发送 '确认' 继续打印，超时将取消打印任务!";
 	
-	public static final String converting_file = "正在转换文件, 请稍后!";
-	
-	public static final String calculating_file = "正在计算页数, 请稍后!";
+	public static final String wait_timeout = "翻面等待超时，请在确认无其他打印任务时手动翻面并发送 '确认' 继续打印";
 	
 	public static final String receiving_file = "正在接收文件, 请稍后...";
 	

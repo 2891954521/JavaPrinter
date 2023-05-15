@@ -23,7 +23,7 @@ public class PrintParam{
 	
 	public PrintParam(){
 		color = PrintColor.GRAY;
-		type = PrintType.SINGLE;
+		type = PrintType.ALL_PAGES;
 		count = 1;
 	}
 	
@@ -37,10 +37,13 @@ public class PrintParam{
 	
 	/**
 	 * 打印类型
-	 * 单面 or 双面
+	 * - ALL_PAGES: 打印全部页
+	 * - ODD_PAGES: 打印奇数页
+	 * - EVEN_PAGES: 打印偶数页
 	 */
 	public enum PrintType{
-		SINGLE,
-		DOUBLE
+		ALL_PAGES,
+		ODD_PAGES,
+		EVEN_PAGES
 	}
 }

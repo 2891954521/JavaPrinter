@@ -34,12 +34,8 @@ public class Confirm extends BaseHandler{
 				printTask.sendMessage(Messages.waiting_file);
 				return false;
 			
-			case CONVERTING:
-				printTask.sendMessage(Messages.converting_file);
-				return false;
-			
-			case CALCULATING:
-				printTask.sendMessage(Messages.calculating_file);
+			case RECEIVING_FILE:
+				printTask.sendMessage(Messages.receiving_file);
 				return false;
 			
 			case BEFORE_PRINT:
@@ -59,18 +55,9 @@ public class Confirm extends BaseHandler{
 			
 			case WAITING_FLIP:
 				// 翻面完成，继续打印
-				printTask.status = PrintStatus.WAITING_PRINT_OTHER_SIDE;
 				context.continuePrintTask(printTask);
 				printTask.sendMessage(Messages.task_submit);
-				return false;
-			
-			case WAITING_PRINT_OTHER_SIDE:
-				printTask.sendMessage(Messages.task_printing);
-				return false;
-			
-			case PRINTING_OTHER_SIDE:
-				printTask.sendMessage(Messages.task_printing);
-				return false;
+				return true;
 			
 			default:
 				printTask.sendMessage("未知的状态: " + printTask.status.name);
