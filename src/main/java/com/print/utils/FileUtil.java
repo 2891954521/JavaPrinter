@@ -1,6 +1,8 @@
 package com.print.utils;
 
-import com.print.config.Config;
+import com.jacob.activeX.ActiveXComponent;
+import com.jacob.com.ComThread;
+import com.jacob.com.Dispatch;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,7 +54,8 @@ public class FileUtil{
 		try(Writer w = new OutputStreamWriter(new FileOutputStream(f), StandardCharsets.UTF_8)){
 			w.write(string);
 			w.flush();
-		}catch(IOException ignored){ }
+		}catch(IOException ignored){
+		}
 	}
 	
 	/**
@@ -81,7 +84,8 @@ public class FileUtil{
 	
 	/**
 	 * 获取不重命文件名
-	 * @param name 文件名
+	 *
+	 * @param name   文件名
 	 * @param suffix 后缀名 (不带'.')
 	 */
 	public static File getOnlyFileName(String parent, String name, String suffix){
@@ -95,7 +99,8 @@ public class FileUtil{
 	
 	/**
 	 * 下载文件
-	 * @param url url
+	 *
+	 * @param url  url
 	 * @param file 下载到的文件
 	 * @return 是否下载成功
 	 */
@@ -125,8 +130,37 @@ public class FileUtil{
 			try{
 				if(input != null) input.close();
 				if(writer != null) writer.close();
-			}catch(IOException ignored){}
+			}catch(IOException ignored){
+			}
 		}
 	}
 	
+	/**
+	 * doc转pdf
+	 * @param source 输入doc路径
+	 * @param target 输出pdf路径
+	 * @return 转换耗时，单位ms，-1表示转换失败
+	 */
+	public static long doc2pdf(File source, @NotNull File target){
+		long start = System.currentTimeMillis();
+		
+		if(target.exists()) target.delete();
+		
+		ComThread.InitSTA();
+		
+		ActiveXComponent app = new ActiveXComponent("Word.Application");
+		app.setProperty("Visible", false);
+		
+		Dispatch docs = app.getProperty("Documents").toDispatch();
+		
+		Dispatch doc = Dispatch.call(docs, "Open", source.toString(), false, true).toDispatch();
+		Dispatch.call(doc, "SaveAs", target.toString(), 17);
+		
+		Dispatch.call(doc, "Close", false);
+		app.invoke("Quit", 0);
+		
+		ComThread.Release();
+		
+		return System.currentTimeMillis() - start;
+	}
 }

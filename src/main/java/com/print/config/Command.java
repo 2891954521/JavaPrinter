@@ -11,12 +11,12 @@ public class Command{
 	 *   Windows
 	 * ===============
 	 */
-	
-	/**
-	 * 将DOC转为PDF
-	 */
-	public static final String DOC_TO_PDF = "docto -f \"%s\" -O \"%s\" -T wdFormatPDF";
-	
+//
+//	/**
+//	 * 将DOC转为PDF
+//	 */
+//	public static final String DOC_TO_PDF = "docto -f \"%s\" -O \"%s\" -T wdFormatPDF";
+
 //	/**
 //	 * 缩放到A4尺寸
 //	 */

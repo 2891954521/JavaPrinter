@@ -1,11 +1,9 @@
 package com.print.print.task;
 
 import com.print.Context;
-import com.print.config.Command;
 import com.print.config.Messages;
 import com.print.entity.User;
 import com.print.print.PrintHandler;
-import com.print.utils.CommandUtil;
 import com.print.utils.FileUtil;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -167,26 +165,20 @@ public class PrintTask{
 		
 		File newFile = new File(context.config.configFile.Print.fileRoot, name.substring(0, name.lastIndexOf(".")) + ".pdf");
 		
-		long start = System.currentTimeMillis();
-		
 		try{
-			String command = String.format(Command.DOC_TO_PDF, printFile.file.toString().replaceAll("\\\\", "/"), newFile.toString().replaceAll("\\\\", "/"));
-			sendMessage(command);
+			long time = FileUtil.doc2pdf(printFile.file, newFile);
 			
-			String s = CommandUtil.execCommand(command);
-			if(!"".equals(s)){
-				if(!newFile.exists()){
-					throw new RuntimeException("请手动转换为pdf，result: " + s);
-				}
-				printFile.file = newFile;
-				sendMessage("转换完成, 耗时: " + (System.currentTimeMillis() - start) + " ms");
-				return true;
-			}else{
-				throw new RuntimeException("请手动转换为pdf!");
-			}
-		}catch(IOException | InterruptedException | RuntimeException e){
+			if(!newFile.exists()) throw new RuntimeException("无输出文件");
+			
+			printFile.file = newFile;
+			
+			sendMessage("转换完成, 耗时: " + time + " ms");
+			
+			return true;
+			
+		}catch(Exception e){
 			status = PrintStatus.WAITING_FILE;
-			sendMessage("转换失败! " + e.getMessage());
+			sendMessage("转换失败，请手动转换为pdf! result：" + e.getMessage());
 			return false;
 		}
 	}
