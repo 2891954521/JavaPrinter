@@ -1,8 +1,9 @@
 package com.print;
 
 import com.print.config.Config;
+import com.print.convert.ConverterManager;
 import com.print.handler.MessageHandler;
-import com.print.print.PrintHandler;
+import com.print.print.PrintManager;
 import com.print.print.task.PrintTask;
 import org.jetbrains.annotations.NotNull;
 
@@ -20,6 +21,8 @@ public class Context{
 	
 	public MessageHandler messageHandler;
 	
+	public ConverterManager converterManager;
+	
 	/**
 	 * 全部打印任务
 	 */
@@ -29,6 +32,8 @@ public class Context{
 		config = new Config();
 
 		messageHandler = new MessageHandler(this);
+		
+		converterManager = new ConverterManager(this);
 		
 		tasks = new HashMap<>(4);
 	}
@@ -51,10 +56,10 @@ public class Context{
 	}
 	
 	public void startPrintTask(PrintTask task){
-		PrintHandler.getInstance(this).appendPrintTask(task);
+		PrintManager.getInstance(this).appendPrintTask(task);
 	}
 	
 	public void continuePrintTask(PrintTask task){
-		PrintHandler.getInstance(this).continuePrint(task);
+		PrintManager.getInstance(this).continuePrint(task);
 	}
 }

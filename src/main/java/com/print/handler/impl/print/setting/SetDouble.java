@@ -20,13 +20,13 @@ public class SetDouble extends BaseHandler{
 	
 	@Override
 	protected void handlerMessage(@NotNull Context context, @NotNull PrintTask printTask, String message){
-		if(printTask.sender.getId() != context.config.configFile.QQ.adminQQ){
-			printTask.sendMessage("暂时不对非管理员开放");
-			return;
-		}
+//		if(printTask.sender.getId() != context.config.configFile.QQ.adminQQ){
+//			printTask.sendMessage("暂时不对非管理员开放");
+//			return;
+//		}
 		if(printTask.status != PrintStatus.PRINTING && printTask.status != PrintStatus.WAITING_FLIP){
 			printTask.printParam.type = PrintParam.PrintType.ODD_PAGES;
-			printTask.sendMessage(printTask.getInfo() + "\n发送'确认'开始打印");
+			printTask.sendMessage(printTask.getInfo() + "\n发送'确认'开始打印\n注意：双面打印需要手动翻面，如不确定如何进行翻面，请不要使用该功能");
 		}else{
 			printTask.sendMessage("打印任务已开始, 无法修改!");
 		}

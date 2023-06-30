@@ -3,7 +3,7 @@ package com.print.print.task;
 import com.print.Context;
 import com.print.config.Messages;
 import com.print.entity.User;
-import com.print.print.PrintHandler;
+import com.print.print.PrintManager;
 import com.print.utils.FileUtil;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -128,8 +128,14 @@ public class PrintTask{
 	 */
 	private void processFile(@NotNull String name, @NotNull String suffix){
 		// 转换格式
-		if("doc".equals(suffix) || "docx".equals(suffix)){
-			if(!convertFile()) return;
+		if(!"pdf".equals(suffix)){
+			try{
+				context.converterManager.convert(this, suffix);
+			}catch(Exception e){
+				status = PrintStatus.WAITING_FILE;
+				sendMessage("转换失败，请手动将文件转换为PDF，result：" + e.getMessage());
+				return;
+			}
 		}
 		
 		try(PDDocument document = PDDocument.load(printFile.file)){
@@ -227,7 +233,7 @@ public class PrintTask{
 			
 			PageFormat pageFormat = new PageFormat();
 			pageFormat.setOrientation(PageFormat.PORTRAIT);
-			pageFormat.setPaper(PrintHandler.getInstance(context).paper);
+			pageFormat.setPaper(PrintManager.getInstance(context).paper);
 			
 			Book book = new Book();
 			for(PDDocument pd : pds){
@@ -235,7 +241,7 @@ public class PrintTask{
 				book.append(printable, pageFormat, pd.getNumberOfPages());
 			}
 			
-			DocPrintJob printJob = PrintHandler.getInstance(context).getPrintService(printParam.color).createPrintJob();
+			DocPrintJob printJob = PrintManager.getInstance(context).getPrintService(printParam.color).createPrintJob();
 			Doc doc = new SimpleDoc(book, DocFlavor.SERVICE_FORMATTED.PAGEABLE, null);
 			
 			printJob.print(doc, attr);

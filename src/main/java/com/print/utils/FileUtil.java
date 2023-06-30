@@ -3,6 +3,7 @@ package com.print.utils;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
+import com.jacob.com.Variant;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -146,21 +147,70 @@ public class FileUtil{
 		
 		if(target.exists()) target.delete();
 		
-		ComThread.InitSTA();
-		
-		ActiveXComponent app = new ActiveXComponent("Word.Application");
-		app.setProperty("Visible", false);
-		
-		Dispatch docs = app.getProperty("Documents").toDispatch();
-		
-		Dispatch doc = Dispatch.call(docs, "Open", source.toString(), false, true).toDispatch();
-		Dispatch.call(doc, "SaveAs", target.toString(), 17);
-		
-		Dispatch.call(doc, "Close", false);
-		app.invoke("Quit", 0);
-		
-		ComThread.Release();
-		
+		Dispatch doc = null;
+		ActiveXComponent app = null;
+		try{
+			ComThread.InitSTA();
+			app = new ActiveXComponent("Word.Application");
+			app.setProperty("Visible", false);
+			doc = Dispatch.call(app.getProperty("Documents").toDispatch(), "Open", source.toString(), false, true).toDispatch();
+			Dispatch.call(doc, "SaveAs", target.toString(), 17);
+		}finally{
+			if(doc != null) Dispatch.call(doc, "Close", false);
+			if(app != null) app.invoke("Quit", 0);
+			ComThread.Release();
+		}
 		return System.currentTimeMillis() - start;
+	}
+	
+	public static void excel2pdf(File source, @NotNull File target) {
+		long start = System.currentTimeMillis();
+		
+		if(target.exists()) target.delete();
+		
+		ActiveXComponent app = null;
+		try{
+			ComThread.InitSTA();
+			app = new ActiveXComponent("Excel.Application");
+			app.setProperty("Visible", false);
+			Dispatch excels = app.getProperty("Workbooks").toDispatch();
+			Dispatch excel = Dispatch.call(excels, "Open", source.toString(), false, true).toDispatch();
+			
+//			Dispatch.call(excel, "ExportAsFixedFormat",  0, target.toString(), 0, true, true);
+			
+			Dispatch sheets = Dispatch.get(excel, "sheets").toDispatch();
+			setPrintArea(sheets);
+			int count = Dispatch.get(sheets, "count").getInt();
+			for (int i = 1; i <= count; i++) {
+				Dispatch sheet = Dispatch.invoke(sheets, "Item", Dispatch.Get, new Object[]{i}, new int[1]).toDispatch();
+				Dispatch.call(sheet, "Select", false);
+			}
+			
+			Dispatch.call(excel, "SaveAs", target.toString(), 57);
+			
+			Dispatch.call(excel, "Close", false);
+		}catch(Exception e){
+			e.printStackTrace();
+		}finally{
+			if(app != null) app.invoke("Quit");
+			ComThread.Release();
+		}
+	}
+	
+	/*
+	 *  为每个表设置打印区域
+	 */
+	private static void setPrintArea(Dispatch sheets) {
+		int count = Dispatch.get(sheets, "count").changeType(Variant.VariantInt).getInt();
+		for (int i = count; i >= 1; i--) {
+			Dispatch sheet = Dispatch.invoke(sheets, "Item",
+					Dispatch.Get, new Object[]{i}, new int[1]).toDispatch();
+			Dispatch page = Dispatch.get(sheet, "PageSetup").toDispatch();
+//			Dispatch.put(page, "PrintArea", false);
+//			Dispatch.put(page, "Orientation", 2);
+//			Dispatch.put(page, "Zoom", 100);      //值为100或false
+//			Dispatch.put(page, "FitToPagesTall", false);  //所有行为一页
+			Dispatch.put(page, "FitToPagesWide", 1);      //所有列为一页(1或false)
+		}
 	}
 }

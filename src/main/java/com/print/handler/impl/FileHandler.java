@@ -49,19 +49,19 @@ public class FileHandler extends BaseHandler{
 		}
 		
 		// 白名单模式匹配文件后缀名
-		boolean allow = false;
+//		boolean allow = false;
 		String suffix = sp[sp.length - 1];
-		for(String s : context.config.configFile.Print.allowFile){
-			if(s.equals(suffix)){
-				allow = true;
-				break;
-			}
-		}
-		
-		if(!allow){
-			sender.sendMessage(context, Messages.unsupported_file);
-			return;
-		}
+//		for(String s : context.config.configFile.Print.allowFile){
+//			if(s.equals(suffix)){
+//				allow = true;
+//				break;
+//			}
+//		}
+//
+//		if(!allow){
+//			sender.sendMessage(context, Messages.unsupported_file);
+//			return;
+//		}
 		
 		task.sendMessage(Messages.receiving_file);
 		

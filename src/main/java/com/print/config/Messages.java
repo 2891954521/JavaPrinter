@@ -20,7 +20,7 @@ public class Messages{
 	
 	public static final String waiting_file = "请发送打印文件!";
 	
-	public static final String waiting_flip = "单面打印完成，请在一分钟内手动翻面并发送 '确认' 继续打印，超时将取消打印任务!";
+	public static final String waiting_flip = "单面打印完成，请在一分钟内手动翻面并发送 '确认' 继续打印";
 	
 	public static final String wait_timeout = "翻面等待超时，请在确认无其他打印任务时手动翻面并发送 '确认' 继续打印";
 	
